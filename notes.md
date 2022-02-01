@@ -1,3 +1,13 @@
+2022-02-01 参考 https://www.jianshu.com/p/f55148c41f54
+`greenlet.py class:Greenlet method: spawn`->创建Greenlet并返回
+`greenlet.py class:Greenlet method: start`->将当前协程添加到loop中
+`greenlet.py method: joinall` -> `_hub_primitives.py method:wait_on_objects`
+
+spawn 创建一个协程
+g.join 等待当前协程运行完毕，原理：切换到hub协程，等待切换回到当前协程
+joinall 等待所有协程运行完毕
+
+
 
 2022-01-31 参考 https://www.jianshu.com/p/f55148c41f54
 

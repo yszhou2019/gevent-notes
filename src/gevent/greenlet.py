@@ -176,11 +176,9 @@ class Greenlet(greenlet):
     """
     A light-weight cooperatively-scheduled execution unit.
     """
-    # pylint:disable=too-many-public-methods,too-many-instance-attributes
 
     spawning_stack_limit = 10
 
-    # pylint:disable=keyword-arg-before-vararg,super-init-not-called
     def __init__(self, run=None, *args, **kwargs):
         """
         :param args: The arguments passed to the ``run`` function.
@@ -216,38 +214,6 @@ class Greenlet(greenlet):
         # Calling it with both positional arguments instead of a keyword
         # argument (parent=get_hub()) speeds up creation of this object ~30%:
         # python -m timeit -s 'import gevent' 'gevent.Greenlet()'
-        # Python 3.5: 2.70usec with keywords vs 1.94usec with positional
-        # Python 3.4: 2.32usec with keywords vs 1.74usec with positional
-        # Python 3.3: 2.55usec with keywords vs 1.92usec with positional
-        # Python 2.7: 1.73usec with keywords vs 1.40usec with positional
-
-        # Timings taken Feb 21 2018 prior to integration of #755
-        # python -m perf timeit -s 'import gevent' 'gevent.Greenlet()'
-        # 3.6.4       : Mean +- std dev: 1.08 us +- 0.05 us
-        # 2.7.14      : Mean +- std dev: 1.44 us +- 0.06 us
-        # PyPy2 5.10.0: Mean +- std dev: 2.14 ns +- 0.08 ns
-
-        # After the integration of spawning_stack, spawning_greenlet,
-        # and spawn_tree_locals on that same date:
-        # 3.6.4       : Mean +- std dev: 8.92 us +- 0.36 us ->  8.2x
-        # 2.7.14      : Mean +- std dev: 14.8 us +- 0.5 us  -> 10.2x
-        # PyPy2 5.10.0: Mean +- std dev: 3.24 us +- 0.17 us ->  1.5x
-
-        # Compiling with Cython gets us to these numbers:
-        # 3.6.4        : Mean +- std dev: 3.63 us +- 0.14 us
-        # 2.7.14       : Mean +- std dev: 3.37 us +- 0.20 us
-        # PyPy2 5.10.0 : Mean +- std dev: 4.44 us +- 0.28 us
-
-        # Switching to reified frames and some more tuning gets us here:
-        # 3.7.2        : Mean +- std dev: 2.53 us +- 0.15 us
-        # 2.7.16       : Mean +- std dev: 2.35 us +- 0.12 us
-        # PyPy2 7.1    : Mean +- std dev: 11.6 us +- 0.4 us
-
-        # Compared to the released 1.4 (tested at the same time):
-        # 3.7.2        : Mean +- std dev: 3.21 us +- 0.32 us
-        # 2.7.16       : Mean +- std dev: 3.11 us +- 0.19 us
-        # PyPy2 7.1    : Mean +- std dev: 12.3 us +- 0.8 us
-
         _greenlet__init__(self, None, get_hub())
 
         if run is not None:
@@ -615,6 +581,8 @@ class Greenlet(greenlet):
 
     def start(self):
         """Schedule the greenlet to run in this loop iteration"""
+        # 什么情况下才代表一个协程开始运行？
+        # 只有添加到loop循环中，注册了对应的cb，才代表这个协程可能被调度，可能被运行
         if self._start_event is None:
             _call_spawn_callbacks(self)
             hub = get_my_hub(self) # type:SwitchOutGreenletWithLoop
@@ -797,6 +765,7 @@ class Greenlet(greenlet):
         expires. In the latter case, :class:`gevent.Timeout` is
         raised.
         """
+        # get调用时，如果greenlet就绪，就返回val或者抛出异常
         if self.ready():
             if self.successful():
                 return self.value
@@ -806,6 +775,7 @@ class Greenlet(greenlet):
 
         switch = getcurrent().switch # pylint:disable=undefined-variable
         self.rawlink(switch)
+        # 如果没有就绪，就切换到hub协程等待调度
         try:
             t = Timeout._start_new_or_dummy(timeout)
             try:
@@ -835,9 +805,11 @@ class Greenlet(greenlet):
         Wait until the greenlet finishes or *timeout* expires. Return
         ``None`` regardless.
         """
+        # 当前协程就绪，就结束
         if self.ready():
             return
 
+        # 当前协程没有就绪，就切换hub协程等待调度
         switch = getcurrent().switch # pylint:disable=undefined-variable
         self.rawlink(switch)
         try:

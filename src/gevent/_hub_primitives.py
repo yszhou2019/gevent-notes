@@ -214,7 +214,7 @@ class _WaitIterator(object):
     def __exit__(self, typ, value, tb):
         self._cleanup()
 
-
+# joinall 默认实现
 def iwait_on_objects(objects, timeout=None, count=None):
     """
     Iteratively yield *objects* as they are ready, until all (or *count*) are ready
@@ -254,6 +254,7 @@ def iwait_on_objects(objects, timeout=None, count=None):
     return _WaitIterator(objects, hub, timeout, count)
 
 
+# joinall的默认实现
 def wait_on_objects(objects=None, timeout=None, count=None):
     """
     Wait for ``objects`` to become ready or for event loop to finish.
@@ -291,6 +292,7 @@ def wait_on_objects(objects=None, timeout=None, count=None):
     if objects is None:
         hub = get_hub()
         return hub.join(timeout=timeout) # pylint:disable=
+    # 这里返回的实际上是一个迭代器，然后通过list一次性迭代完毕 对所有的greenlet调用get()
     return list(iwait_on_objects(objects, timeout, count))
 
 _timeout_error = Exception
