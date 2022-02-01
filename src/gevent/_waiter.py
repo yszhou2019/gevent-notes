@@ -23,7 +23,12 @@ _NONE = object()
 locals()['getcurrent'] = __import__('greenlet').getcurrent
 locals()['greenlet_init'] = lambda: None
 
-
+'''
+yszhou 2022-01-31
+`class Waiter`用来存储协程的返回值或者抛出的异常, 封装greenlet的switch()和throw()函数
+类似于promise或者future的概念，创建一个waiter之后，需要用定时器来约定时间和返回值
+之后直接get()，阻塞若干时间之后即可取得返回值
+'''
 class Waiter(object):
     """
     A low level communication utility for greenlets.
@@ -102,6 +107,9 @@ class Waiter(object):
         if self._exception is not _NONE:
             return self._exception
 
+    '''
+    future中保存当前的协程，用于hub协程调度当前协程后，恢复工作化妆台
+    '''
     def switch(self, value):
         """
         Switch to the greenlet if one's available. Otherwise store the
@@ -115,10 +123,12 @@ class Waiter(object):
             self.value = value
             self._exception = None
         else:
-            if getcurrent() is not self.hub: # pylint:disable=undefined-variable
+            # 确保当前运行的协程必须是hub协程
+            if getcurrent() is not self.hub:
                 raise AssertionError("Can only use Waiter.switch method from the Hub greenlet")
             switch = greenlet.switch
             try:
+                # 恢复到工作协程
                 switch(value)
             except: # pylint:disable=bare-except
                 self.hub.handle_error(switch, *sys.exc_info())
@@ -140,17 +150,27 @@ class Waiter(object):
             except: # pylint:disable=bare-except
                 self.hub.handle_error(throw, *sys.exc_info())
 
+    '''
+    future(Waiter).get()
+    如果val已经计算出来，那么直接返回
+    如果没有计算出来，就挂起当前协程 恢复hub协程
+    '''
     def get(self):
         """If a value/an exception is stored, return/raise it. Otherwise until switch() or throw() is called."""
         if self._exception is not _NONE:
+            # 如果正常执行完毕 那么获取返回值
             if self._exception is None:
                 return self.value
-            getcurrent().throw(*self._exception) # pylint:disable=undefined-variable
+            getcurrent().throw(*self._exception)
         else:
+            # 否则结果为空，就代表当前协程没有执行完毕
+            # 需要挂起当前协程 切换到hub协程
             if self.greenlet is not None:
                 raise ConcurrentObjectUseError('This Waiter is already used by %r' % (self.greenlet, ))
-            self.greenlet = getcurrent() # pylint:disable=undefined-variable
+            # 存储当前工作协程，用于之后恢复
+            self.greenlet = getcurrent()
             try:
+                # 切换到hub协程
                 return self.hub.switch()
             finally:
                 self.greenlet = None

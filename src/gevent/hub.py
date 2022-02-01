@@ -157,10 +157,16 @@ def sleep(seconds=0, ref=True):
         waiter.get()
     else:
         with loop.timer(seconds, ref=ref) as t:
+            # 创建定时器，只设定了定时器的时间，没有设定callback
             # Sleeping is expected to be an "absolute" measure with
             # respect to time.time(), not a relative measure, so it's
             # important to update the loop's notion of now before we start
             loop.update_now()
+            # yszhou 2022-01-31
+            # gevent核心操作，执行IO阻塞操作时候的具体细节:
+            # 1 执行阻塞操作的时候，先从当前协程切换到hub协程
+            # 2 watcher对应的事件就绪，再从hub协程返回原协程
+            # 具体原理在于`_hub_primitives.py: class WaitOperationsGreenlet: def wait()`
             hub.wait(t)
 
 
@@ -626,6 +632,9 @@ class Hub(WaitOperationsGreenlet):
             errstream.write('%s failed with %s\n\n' % (context, getattr(t, '__name__', 'exception'), ))
 
 
+    '''
+    当切换到hub协程时，自动执行hub.run()
+    '''
     def run(self):
         """
         Entry-point to running the loop. This method is called automatically
@@ -639,6 +648,10 @@ class Hub(WaitOperationsGreenlet):
         assert self is getcurrent(), 'Do not call Hub.run() directly'
         self.start_periodic_monitoring_thread()
         while 1:
+            # 总loop
+            # 创建的各种定时器，就是注册到总loop上
+            # 创建定时器的时候 loop.timer(seconds) 以及对应的waiter(实际上就是future) 注册到loop中
+            # hub协程就是不断筛选协程进行执行
             loop = self.loop
             loop.error_handler = self
             try:
