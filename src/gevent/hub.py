@@ -77,31 +77,6 @@ def spawn_raw(function, *args, **kwargs):
     should prefer :func:`~gevent.spawn`, but this method may
     occasionally be useful as an optimization if there are many
     greenlets involved.
-
-    .. versionchanged:: 1.1a3
-        Verify that ``function`` is callable, raising a TypeError if not. Previously,
-        the spawned greenlet would have failed the first time it was switched to.
-
-    .. versionchanged:: 1.1b1
-       If *function* is not callable, immediately raise a :exc:`TypeError`
-       instead of spawning a greenlet that will raise an uncaught TypeError.
-
-    .. versionchanged:: 1.1rc2
-        Accept keyword arguments for ``function`` as previously (incorrectly)
-        documented. Note that this may incur an additional expense.
-
-    .. versionchanged:: 1.3a2
-       Populate the ``spawning_greenlet`` and ``spawn_tree_locals``
-       attributes of the returned greenlet.
-
-    .. versionchanged:: 1.3b1
-       *Only* populate ``spawning_greenlet`` and ``spawn_tree_locals``
-       if ``GEVENT_TRACK_GREENLET_TREE`` is enabled (the default). If not enabled,
-       those attributes will not be set.
-
-    .. versionchanged:: 1.5a3
-       The returned greenlet always has a *loop* attribute matching the
-       current hub's loop. This helps it work better with more gevent APIs.
     """
     if not callable(function):
         raise TypeError("function must be callable")

@@ -186,42 +186,18 @@ class Greenlet(greenlet):
         :keyword callable run: The callable object to run. If not given, this object's
             `_run` method will be invoked (typically defined by subclasses).
 
-        .. versionchanged:: 1.1b1
-            The ``run`` argument to the constructor is now verified to be a callable
-            object. Previously, passing a non-callable object would fail after the greenlet
-            was spawned.
-
-        .. versionchanged:: 1.3b1
-           The ``GEVENT_TRACK_GREENLET_TREE`` configuration value may be set to
-           a false value to disable ``spawn_tree_locals``, ``spawning_greenlet``,
-           and ``spawning_stack``. The first two will be None in that case, and the
-           latter will be empty.
-
-        .. versionchanged:: 1.5
-           Greenlet objects are now more careful to verify that their ``parent`` is really
-           a gevent hub, raising a ``TypeError`` earlier instead of an ``AttributeError`` later.
-
-        .. versionchanged:: 20.12.1
            Greenlet objects now function as context managers. Exiting the ``with`` suite
            ensures that the greenlet has completed by :meth:`joining <join>`
            the greenlet (blocking, with
            no timeout). If the body of the suite raises an exception, the greenlet is
            :meth:`killed <kill>` with the default arguments and not joined in that case.
         """
-        # The attributes are documented in the .rst file
-
-        # greenlet.greenlet(run=None, parent=None)
-        # Calling it with both positional arguments instead of a keyword
-        # argument (parent=get_hub()) speeds up creation of this object ~30%:
-        # python -m timeit -s 'import gevent' 'gevent.Greenlet()'
+        
         _greenlet__init__(self, None, get_hub())
 
         if run is not None:
             self._run = run
 
-        # If they didn't pass a callable at all, then they must
-        # already have one. Note that subclassing to override the run() method
-        # itself has never been documented or supported.
         if not callable(self._run):
             raise TypeError("The run argument or self._run must be callable")
 
@@ -585,7 +561,7 @@ class Greenlet(greenlet):
         # 只有添加到loop循环中，注册了对应的cb，才代表这个协程可能被调度，可能被运行
         if self._start_event is None:
             _call_spawn_callbacks(self)
-            hub = get_my_hub(self) # type:SwitchOutGreenletWithLoop
+            hub = get_my_hub(self)
             self._start_event = hub.loop.run_callback(self.switch)
 
     def start_later(self, seconds):
@@ -597,7 +573,7 @@ class Greenlet(greenlet):
         """
         if self._start_event is None:
             _call_spawn_callbacks(self)
-            hub = get_my_hub(self) # pylint:disable=undefined-variable
+            hub = get_my_hub(self)
             self._start_event = hub.loop.timer(seconds)
             self._start_event.start(self.switch)
 
@@ -773,13 +749,13 @@ class Greenlet(greenlet):
         if not block:
             raise Timeout()
 
-        switch = getcurrent().switch # pylint:disable=undefined-variable
+        switch = getcurrent().switch
         self.rawlink(switch)
         # 如果没有就绪，就切换到hub协程等待调度
         try:
             t = Timeout._start_new_or_dummy(timeout)
             try:
-                result = get_my_hub(self).switch() # pylint:disable=undefined-variable
+                result = get_my_hub(self).switch()
                 if result is not self:
                     raise InvalidSwitchError('Invalid switch into Greenlet.get(): %r' % (result, ))
             finally:
@@ -810,12 +786,12 @@ class Greenlet(greenlet):
             return
 
         # 当前协程没有就绪，就切换hub协程等待调度
-        switch = getcurrent().switch # pylint:disable=undefined-variable
+        switch = getcurrent().switch
         self.rawlink(switch)
         try:
             t = Timeout._start_new_or_dummy(timeout)
             try:
-                result = get_my_hub(self).switch() # pylint:disable=undefined-variable
+                result = get_my_hub(self).switch()
                 if result is not self:
                     raise InvalidSwitchError('Invalid switch into Greenlet.join(): %r' % (result, ))
             finally:

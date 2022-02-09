@@ -41,23 +41,23 @@ __all__ = [
     'wait_readwrite',
 ]
 
-class WaitOperationsGreenlet(SwitchOutGreenletWithLoop): # pylint:disable=undefined-variable
+class WaitOperationsGreenlet(SwitchOutGreenletWithLoop):
 
     # yszhou 2022-01-31
     # 形参watcher对应的实参，是loop.timer 定时器
     def wait(self, watcher):
         """
         Wait until the *watcher* (which must not be started) is ready.
-
         The current greenlet will be unscheduled during this time.
         """
-        # 创建gevent.hub.Waiter
-        # 用于存储协程的返回值 类似于future的概念
-        waiter = Waiter(self)
+        # `_waiter.py` 创建Waiter 用于存储协程的返回值 类似于future的概念
+        waiter = Waiter(hub=self)
         # 定时器注册回调函数，在经过设定的时间之后调用waiter.switch 切换回工作协程
+        # 创建waiter & 注册callback时，还没有给waiter指定greenlet
         watcher.start(waiter.switch, waiter)
         try:
-            # 获取future结果或者异常
+            # 这里调用waiter.get() 才会设定greenlet到waiter中
+            # 将当前的工作协程保存到waiter中，并切换到hub协程
             result = waiter.get()
             if result is not waiter:
                 raise InvalidSwitchError(

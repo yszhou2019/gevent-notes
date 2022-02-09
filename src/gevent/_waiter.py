@@ -108,15 +108,11 @@ class Waiter(object):
             return self._exception
 
     '''
-    future中保存当前的协程，用于hub协程调度当前协程后，恢复工作化妆台
+    future中保存当前的协程，用于hub协程调度当前协程后，恢复工作现场
     '''
     def switch(self, value):
         """
-        Switch to the greenlet if one's available. Otherwise store the
-        *value*.
-
-        .. versionchanged:: 1.3b1
-           The *value* is no longer optional.
+        Switch to the greenlet if one's available. Otherwise store the *value*.
         """
         greenlet = self.greenlet
         if greenlet is None:
@@ -130,7 +126,7 @@ class Waiter(object):
             try:
                 # 恢复到工作协程
                 switch(value)
-            except: # pylint:disable=bare-except
+            except:
                 self.hub.handle_error(switch, *sys.exc_info())
 
     def switch_args(self, *args):
@@ -142,7 +138,7 @@ class Waiter(object):
         if greenlet is None:
             self._exception = throw_args
         else:
-            if getcurrent() is not self.hub: # pylint:disable=undefined-variable
+            if getcurrent() is not self.hub:
                 raise AssertionError("Can only use Waiter.switch method from the Hub greenlet")
             throw = greenlet.throw
             try:
@@ -167,12 +163,13 @@ class Waiter(object):
             # 需要挂起当前协程 切换到hub协程
             if self.greenlet is not None:
                 raise ConcurrentObjectUseError('This Waiter is already used by %r' % (self.greenlet, ))
-            # 存储当前工作协程，用于之后恢复
+            # getcurrent()函数: 存储当前工作协程，用于之后恢复
             self.greenlet = getcurrent()
             try:
                 # 切换到hub协程
                 return self.hub.switch()
             finally:
+                # 工作协程被选中调度返回，清空self.greenlet
                 self.greenlet = None
 
     def __call__(self, source):
@@ -199,11 +196,6 @@ class MultipleWaiter(Waiter):
 
     def __init__(self, hub=None):
         Waiter.__init__(self, hub)
-        # we typically expect a relatively small number of these to be outstanding.
-        # since we pop from the left, a deque might be slightly
-        # more efficient, but since we're in the hub we avoid imports if
-        # we can help it to better support monkey-patching, and delaying the import
-        # here can be impractical (see https://github.com/gevent/gevent/issues/652)
         self._values = []
 
     def switch(self, value):
